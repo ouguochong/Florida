@@ -1,0 +1,62 @@
+From 96ee9c4c7e0e6b233c8434ac6a40f9dcebdba13d Mon Sep 17 00:00:00 2001
+From: matbrik <6418737+matbrik@users.noreply.github.com>
+Date: Wed, 25 Sep 2024 09:52:37 +0000
+Subject: [PATCH 3/3] android: handle change of signature of runFlip
+
+---
+ lib/android.js | 38 ++++++++++++++++----------------------
+ 1 file changed, 16 insertions(+), 22 deletions(-)
+
+diff --git a/lib/android.js b/lib/android.js
+index 6db17bd..1317e73 100644
+--- a/lib/android.js
++++ b/lib/android.js
+@@ -1894,29 +1894,23 @@ function ensureArtKnowsHowToHandleReplacementMethods (vm) {
+ 
+   const apiLevel = getAndroidApiLevel();
+ 
+-  const mayUseCollector = (apiLevel > 28)
+-    ? (type) => {
+-        const impl = Module.findExportByName('libart.so', '_ZNK3art2gc4Heap15MayUseCollectorENS0_13CollectorTypeE');
+-        if (impl === null) {
+-          return false;
+-        }
+-        return new NativeFunction(impl, 'bool', ['pointer', 'int'])(getApi().artHeap, type);
+-      }
+-    : () => false;
+-  const kCollectorTypeCMC = 3;
++  let copyingPhase = null;
++  if (apiLevel > 28) {
++    copyingPhase = Module.findExportByName('libart.so', '_ZN3art2gc9collector17ConcurrentCopying12CopyingPhaseEv');
++  } else if (apiLevel > 22) {
++    copyingPhase = Module.findExportByName('libart.so', '_ZN3art2gc9collector17ConcurrentCopying12MarkingPhaseEv');
++  }
++  if (copyingPhase !== null) {
++    Interceptor.attach(copyingPhase, artController.hooks.Gc.copyingPhase);
++  }
+ 
+-  if (mayUseCollector(kCollectorTypeCMC)) {
+-    Interceptor.attach(Module.getExportByName('libart.so', '_ZN3art6Thread15RunFlipFunctionEPS0_b'), artController.hooks.Gc.runFlip);
+-  } else {
+-    let copyingPhase = null;
+-    if (apiLevel > 28) {
+-      copyingPhase = Module.findExportByName('libart.so', '_ZN3art2gc9collector17ConcurrentCopying12CopyingPhaseEv');
+-    } else if (apiLevel > 22) {
+-      copyingPhase = Module.findExportByName('libart.so', '_ZN3art2gc9collector17ConcurrentCopying12MarkingPhaseEv');
+-    }
+-    if (copyingPhase !== null) {
+-      Interceptor.attach(copyingPhase, artController.hooks.Gc.copyingPhase);
+-    }
++  let runFlip = null;
++  runFlip = Module.findExportByName('libart.so', '_ZN3art6Thread15RunFlipFunctionEPS0_b');
++  if (runFlip === null) {
++    runFlip = Module.findExportByName('libart.so', '_ZN3art6Thread15RunFlipFunctionEPS0'); // api 35
++  }
++  if (runFlip !== null) {
++    Interceptor.attach(runFlip, artController.hooks.Gc.runFlip);
+   }
+ }
+ 
+-- 
+2.47.0.windows.1
+

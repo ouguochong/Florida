@@ -1,0 +1,41 @@
+From a44980e0a15f7c3172332027e3e6b0c333c28ce0 Mon Sep 17 00:00:00 2001
+From: matbrik <6418737+matbrik@users.noreply.github.com>
+Date: Tue, 24 Sep 2024 13:32:59 +0000
+Subject: [PATCH 2/3] fix lint errors
+
+---
+ lib/android.js | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/lib/android.js b/lib/android.js
+index 03ba488..6db17bd 100644
+--- a/lib/android.js
++++ b/lib/android.js
+@@ -260,8 +260,8 @@ function _getApi () {
+ 
+           // Android < 6 for cloneArtMethod()
+           _ZN3art6Thread14CurrentFromGdbEv: ['art::Thread::CurrentFromGdb', 'pointer', []],
+-            _ZN3art6mirror6Object5CloneEPNS_6ThreadE: function (address) {
+-              this['art::mirror::Object::Clone'] = new NativeFunction(address, 'pointer', ['pointer', 'pointer'], nativeFunctionOptions);
++          _ZN3art6mirror6Object5CloneEPNS_6ThreadE: function (address) {
++            this['art::mirror::Object::Clone'] = new NativeFunction(address, 'pointer', ['pointer', 'pointer'], nativeFunctionOptions);
+           },
+           _ZN3art6mirror6Object5CloneEPNS_6ThreadEm: function (address) {
+             const clone = new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'pointer'], nativeFunctionOptions);
+@@ -3930,11 +3930,9 @@ function makeArtThreadStateTransitionImpl (vm, env, callback) {
+   let exceptionClearImpl = envVtable.add(ENV_VTABLE_OFFSET_EXCEPTION_CLEAR).readPointer();
+   const nextFuncImpl = envVtable.add(ENV_VTABLE_OFFSET_FATAL_ERROR).readPointer();
+   if (Process.arch === 'arm64') {
+-    const base = exceptionClearImpl;
+     const size = 0x150;
+-    const pattern = "c0 03 5f d6"; ///ret
+-    var res = Memory.scanSync(base, size, pattern)
+-    if(res.length > 0){
++    const pattern = 'c0 03 5f d6'; // ret
++    if (Memory.scanSync(exceptionClearImpl, size, pattern).length > 0) {
+       exceptionClearImpl = envVtable.add(ENV_VTABLE_OFFSET_EXCEPTION_CLEAR_ALT).readPointer();
+     }
+   }
+-- 
+2.47.0.windows.1
+
